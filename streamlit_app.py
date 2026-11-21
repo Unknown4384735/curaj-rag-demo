@@ -37,8 +37,8 @@ def get_score(item):
 def chunk_pdf(pdf_source, file_name):
     reader = PdfReader(pdf_source)
     chunks = []
-    chunk_size = 140  # words per chunk
-    step = 100        # 40-word overlap so codes/sentences aren't cut in half
+    chunk_size = 320  # words per chunk
+    step = 200        # 40-word overlap so codes/sentences aren't cut in half
 
     for page_num in range(len(reader.pages)):
         raw_text = reader.pages[page_num].extract_text()
@@ -181,7 +181,7 @@ for doc_id in rrf_scores:
 hybrid_results.sort(key=get_score, reverse=True)
 
 # 8. Stage 3: Cross-Encoder Reranker on Top 5 Hybrid Matches
-top_k = min(5, len(hybrid_results))
+top_k = min(10, len(hybrid_results))
 top_candidates = hybrid_results[:top_k]
 pairs = []
 
