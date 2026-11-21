@@ -4,7 +4,6 @@ from rank_bm25 import BM25Okapi
 
 st.set_page_config(page_title="CURAJ Smart Search (Hybrid RAG)", layout="wide")
 
-# 1. Knowledge Base (Official CURAJ Ordinance 03 Rules & M.Sc. Courses)
 documents = [
     # Official CURAJ Ordinance 03 (Examination and Evaluation)
     "CURAJ Ordinance 03 — 6.1. A student shall be required to put in a minimum of 75% of attendance in the registered courses.",
