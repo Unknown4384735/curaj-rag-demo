@@ -9,6 +9,13 @@ st.set_page_config(page_title="CURAJ Hybrid RAG PDF Search", layout="wide")
 
 # 1. Beginner Helper Functions (Lists, Dictionaries, Loops, If/Else Only)
 def tokenize(text):
+    stop_words = [
+        "a", "an", "the", "is", "are", "was", "were", "be", "in", "on", "at",
+        "to", "for", "of", "and", "or", "by", "as", "with", "from", "about",
+        "what", "which", "who", "how", "when", "where", "why", "do", "does",
+        "did", "can", "i", "we", "you", "my", "our", "it", "this", "that", "so"
+    ]
+
     cleaned = ""
     for ch in text.lower():
         if ch.isalnum() or ch == ".":
@@ -19,7 +26,12 @@ def tokenize(text):
     words = cleaned.split()
     tokens = []
     for word in words:
-        tokens.append(word.strip("."))
+        clean_word = word.strip(".")
+        if clean_word != "" and clean_word not in stop_words:
+            tokens.append(clean_word)
+
+    if len(tokens) == 0:
+        return words
     return tokens
 
 
