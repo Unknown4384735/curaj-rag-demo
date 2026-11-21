@@ -43,22 +43,22 @@ def get_score(item):
     return item[1]
 
 
-# 3. Load Models Once (Keeps the Web App Fast)
+# 3. Load Models Once (Auto-refreshes if documents change)
 @st.cache_resource
-def load_models():
+def load_models(doc_list):
     embed_model = SentenceTransformer("all-MiniLM-L6-v2")
     rerank_model = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
-    doc_vectors = embed_model.encode(documents, normalize_embeddings=True)
+    doc_vectors = embed_model.encode(doc_list, normalize_embeddings=True)
 
     tokenized_docs = []
-    for doc in documents:
+    for doc in doc_list:
         tokenized_docs.append(tokenize(doc))
     bm25 = BM25Okapi(tokenized_docs)
 
     return embed_model, rerank_model, doc_vectors, bm25
 
 
-embed_model, rerank_model, doc_vectors, bm25 = load_models()
+embed_model, rerank_model, doc_vectors, bm25 = load_models(documents)
 
 # 4. Clear, Self-Explanatory Header
 st.title("CURAJ Smart Policy & Course Search")
