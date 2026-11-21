@@ -17,10 +17,10 @@ This app compares three retrieval stages on a small university policy and course
 
 ## Python Concepts Used
 Built strictly with foundational Python (no NumPy, no OOP/classes):
-- **Lists & Tuples** — storing documents, tokens, and `(doc_id, score)` pairs
-- **Dictionaries** — accumulating Reciprocal Rank Fusion (`rrf_scores`)
-- **`for` Loops & `if/else` Conditions** — tokenization, dot-product similarity, and score filtering
-- **Functions** — modular helpers (`tokenize`, `cosine_similarity`, `get_score`)
+- **Lists & Tuples**  storing documents, tokens, and `(doc_id, score)` pairs
+- **Dictionaries** accumulating Reciprocal Rank Fusion (`rrf_scores`)
+- **`for` Loops & `if/else` Conditions** tokenization, dot-product similarity, and score filtering
+- **Functions** modular helpers (`tokenize`, `cosine_similarity`, `get_score`)
 
 ## Tech Stack
 - **UI:** Streamlit
