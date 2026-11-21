@@ -1,4 +1,3 @@
-# curaj-rag-demo
 
 # Hybrid RAG Search Engine (6.0MBD71)
 
