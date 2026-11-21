@@ -2,8 +2,12 @@ import streamlit as st
 from sentence_transformers import SentenceTransformer, CrossEncoder
 from rank_bm25 import BM25Okapi
 
+st.set_page_config(page_title="CURAJ Smart Search (Hybrid RAG)", layout="wide")
+
+# 1. Knowledge Base (Official CURAJ Ordinance 03 Rules & M.Sc. Courses)
 documents = [
-    "Attendance Policy: Students need at least 75% attendance to sit for lab and end-term exams.",
+    "Attendance Policy (CURAJ Ordinance 03, Clause 6.1): Students must maintain a minimum of 75% attendance in registered courses to sit for lab and End of Semester Exams (EoSE).",
+    "Attendance Condonation Rule (CURAJ Ordinance 03, Clause 6.6): In exceptional medical or unavoidable cases, the Vice-Chancellor may condone attendance shortage down to 65%.",
     "Python Lab Rule: Students must submit weekly Python practice programs and clear the lab viva.",
     "Course 6.0MBD01 (Linear Algebra): Covers vector spaces, eigenvalues, orthogonality, and MATLAB.",
     "Course 6.0MBD02 (Foundations of Data Science): Covers data preprocessing, PCA, SVD, LDA, and UMAP.",
@@ -11,6 +15,8 @@ documents = [
     "Course 6.0MBD71 (Programming in Python): Covers variables, data types, conditionals, loops, strings, lists, dictionaries, and functions.",
 ]
 
+
+# 2. Beginner Helper Functions (Only Loops, Strings, Lists & If/Else)
 def tokenize(text):
     cleaned = ""
     for ch in text.lower():
@@ -37,7 +43,7 @@ def get_score(item):
     return item[1]
 
 
-# 3. Load Models 
+# 3. Load Models Once (Keeps the Web App Fast)
 @st.cache_resource
 def load_models():
     embed_model = SentenceTransformer("all-MiniLM-L6-v2")
@@ -54,26 +60,38 @@ def load_models():
 
 embed_model, rerank_model, doc_vectors, bm25 = load_models()
 
-# 4. Simple Web Page Layout
-st.title("CURAJ Hybrid RAG Search Engine")
-st.caption("Programming in Python (6.0MBD71) — Lists, Dictionaries, Loops, If/Else & Functions")
-
-demo_query = st.selectbox(
-    "Choose a presentation demo query:",
-    [
-        "What topics are covered in 6.0MBD71?",
-        "How much class presence is needed so I don't get detained?",
-    ],
+# 4. Clear, Self-Explanatory Header
+st.title("CURAJ Smart Policy & Course Search")
+st.markdown(
+    "Ask a question about **CURAJ attendance rules** or **M.Sc. Big Data courses**. "
+    "This demo shows how **Hybrid RAG** (Meaning + Exact Keywords + AI Reranking) prevents standard AI search mistakes."
 )
 
-custom_query = st.text_input("Or type your own question and press Enter:")
+# 5. Search Controls
+col_pick, col_custom = st.columns(2)
+
+with col_pick:
+    demo_query = st.selectbox(
+        "Try a preset test question:",
+        [
+            "What topics are covered in 6.0MBD71?",
+            "How much class presence is needed so I don't get detained?",
+            "What does Clause 6.6 say about medical attendance shortage?",
+        ],
+    )
+
+with col_custom:
+    custom_query = st.text_input(
+        "Or type your own question and press Enter:",
+        placeholder="e.g., Which subject teaches MySQL? or Do I need lab viva?",
+    )
 
 if custom_query.strip() != "":
     query = custom_query
 else:
     query = demo_query
 
-# 5. Stage 1: Naive Vector Search (Meaning Only)
+# 6. Stage 1: Naive Vector Search (Meaning Only)
 query_vec = embed_model.encode(query, normalize_embeddings=True)
 vector_results = []
 
@@ -83,7 +101,7 @@ for i in range(len(documents)):
 
 vector_results.sort(key=get_score, reverse=True)
 
-# 6. Stage 2: BM25 Keyword Search + Reciprocal Rank Fusion (RRF)
+# 7. Stage 2: BM25 Keyword Search + Reciprocal Rank Fusion (RRF)
 query_tokens = tokenize(query)
 bm25_raw = bm25.get_scores(query_tokens)
 bm25_results = []
@@ -95,7 +113,6 @@ for i in range(len(documents)):
 
 bm25_results.sort(key=get_score, reverse=True)
 
-# Combine Vector Ranks and BM25 Ranks using a Python Dictionary
 rrf_scores = {}
 
 for i in range(len(vector_results)):
@@ -117,7 +134,7 @@ for doc_id in rrf_scores:
 
 hybrid_results.sort(key=get_score, reverse=True)
 
-# 7. Stage 3: Cross-Encoder Reranker on Top 3 Hybrid Matches
+# 8. Stage 3: Cross-Encoder Reranker on Top 3 Hybrid Matches
 top_3 = hybrid_results[:3]
 pairs = []
 
@@ -134,26 +151,74 @@ for i in range(len(top_3)):
 
 rerank_results.sort(key=get_score, reverse=True)
 
-# 8. All 3 Stages Clearly on Screen
-st.subheader("1) Naive Vector Search (Top 3)")
-for i in range(3):
-    doc_id = vector_results[i][0]
-    score = vector_results[i][1]
-    st.write(f"**#{i + 1} ({score:.4f})** → {documents[doc_id]}")
-
-st.subheader("2) Hybrid Search: Vector + BM25 + RRF (Top 3)")
-for i in range(3):
-    doc_id = hybrid_results[i][0]
-    score = hybrid_results[i][1]
-    st.write(f"**#{i + 1} ({score:.4f})** → {documents[doc_id]}")
-
-st.subheader("3) After Cross-Encoder Reranker (Final Ranking)")
-for i in range(len(rerank_results)):
-    doc_id = rerank_results[i][0]
-    score = rerank_results[i][1]
-    st.write(f"**#{i + 1} ({score:+.4f})** → {documents[doc_id]}")
+# 9. SHOW THE PRACTICAL ANSWER FIRST (Instant Clarity for Any Visitor)
+best_doc_id = rerank_results[0][0]
+best_score = rerank_results[0][1]
+vector_top_id = vector_results[0][0]
 
 st.divider()
-st.subheader("Final Context Sent to LLM")
-best_doc_id = rerank_results[0][0]
-st.success(documents[best_doc_id])
+st.subheader("Best Verified Answer (Context Sent to LLM)")
+
+if best_score < -4.0:
+    st.error(
+        "No strong match found in the CURAJ database for this question. "
+        "Open the Knowledge Base below to see what topics are indexed."
+    )
+    st.write(f"Closest weak guess ({best_score:+.2f}): {documents[best_doc_id]}")
+else:
+    st.success(documents[best_doc_id])
+
+    if best_doc_id != vector_top_id:
+        st.warning(
+            "**Why Hybrid RAG mattered here:** Standard AI (Vector Search alone) missed this at #1 "
+            "because exact course codes or clause numbers confuse meaning-only search. "
+            "Adding BM25 keyword matching + AI Reranking caught the exact match and moved it to #1."
+        )
+    else:
+        st.info(
+            "**Why AI Search worked here:** Even if your wording didn't match the exact policy words, "
+            "Vector Search understood the meaning at #1—and the Hybrid + Reranker pipeline verified it."
+        )
+
+# 10. UNDER THE HOOD: SIDE-BY-SIDE 3-STAGE COMPARISON
+st.subheader("Under the Hood: How the 3-Stage Engine Ranked Results")
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.markdown("### 1. Standard AI (Vector)")
+    st.caption("Matches meaning only. Often misses exact codes.")
+    for i in range(3):
+        doc_id = vector_results[i][0]
+        score = vector_results[i][1]
+        st.write(f"**#{i + 1} (`{score:.4f}`)** — {documents[doc_id]}")
+
+with col2:
+    st.markdown("### 2. Hybrid (Vector + BM25)")
+    st.caption("Combines meaning + exact keywords using RRF.")
+    for i in range(3):
+        doc_id = hybrid_results[i][0]
+        score = hybrid_results[i][1]
+        st.write(f"**#{i + 1} (`{score:.4f}`)** — {documents[doc_id]}")
+
+with col3:
+    st.markdown("### 3. AI Reranker (Final)")
+    st.caption("Reads question + Top 3 together to pick the winner.")
+    for i in range(len(rerank_results)):
+        doc_id = rerank_results[i][0]
+        score = rerank_results[i][1]
+        st.write(f"**#{i + 1} (`{score:+.4f}`)** — {documents[doc_id]}")
+
+# 11. TRANSPARENCY PANEL (So Any Visitor Knows What the App Searches)
+st.divider()
+with st.expander("View Knowledge Base & Official Source (What this app searches)"):
+    for i in range(len(documents)):
+        st.write(f"{i + 1}. {documents[i]}")
+    st.caption(
+        "Official Attendance Policy Source: Central University of Rajasthan, "
+        "Ordinance 03 (Examination and Evaluation), Clauses 6.1 & 6.6 — "
+        "https://www.curaj.ac.in/sites/default/files/University%20Ordinance%20Revised%20No.%2003.pdf"
+    )
+    st.caption(
+        "Code Built With: Python Lists, Dictionaries, for Loops, if/else & Functions "
+        "(Course 6.0MBD71 — No NumPy / No OOP)"
+    )
