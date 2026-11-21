@@ -206,7 +206,7 @@ vector_top_id = vector_results[0][0]
 st.divider()
 st.subheader("Best Verified Match (Raw PDF Excerpt Sent to LLM)")
 
-if best_score < -7.0:
+if best_score < -5.0:
     st.error("No strong match found in the uploaded PDF(s) for this question.")
 else:
     st.success(f"**{documents[best_doc_id]['title']}**\n\n{documents[best_doc_id]['text']}")
