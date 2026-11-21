@@ -6,9 +6,9 @@ st.set_page_config(page_title="CURAJ Smart Search (Hybrid RAG)", layout="wide")
 
 # 1. Knowledge Base (Official CURAJ Ordinance 03 Rules & M.Sc. Courses)
 documents = [
-    "Attendance Policy (CURAJ Ordinance 03, Clause 6.1): Students must maintain a minimum of 75% attendance in registered courses to sit for lab and End of Semester Exams (EoSE).",
-    "Attendance Condonation Rule (CURAJ Ordinance 03, Clause 6.6): In exceptional medical or unavoidable cases, the Vice-Chancellor may condone attendance shortage down to 65%.",
-    "Python Lab Rule: Students must submit weekly Python practice programs and clear the lab viva.",
+    "CURAJ Ordinance 03 — 6.1. A student shall be required to put in a minimum of 75% of attendance in the registered courses.",
+    "CURAJ Ordinance 03 — 6.6. In very exceptional cases such as on medical or any other unavoidable grounds, the Vice-chancellor may condone shortage of attendance of a student under following conditions. a. Condonation cannot be for attendance less than 65% b. Condonation can be for only one occasion in the entire duration of the programme of Study.",
+    "CURAJ Ordinance 03 — 13.2. To appear in the EoSE the student must have minimum attendance as prescribed in this ordinance.",
     "Course 6.0MBD01 (Linear Algebra): Covers vector spaces, eigenvalues, orthogonality, and MATLAB.",
     "Course 6.0MBD02 (Foundations of Data Science): Covers data preprocessing, PCA, SVD, LDA, and UMAP.",
     "Course 6.0MBD03 (DBMS): Covers ER diagrams, relational algebra, normalization, and MySQL.",
