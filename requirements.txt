@@ -3,3 +3,4 @@ torch
 streamlit
 sentence-transformers
 rank-bm25
+pypdf
