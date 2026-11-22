@@ -74,3 +74,15 @@ def build_index(texts, _embed_model):
     for t in texts:
         tokenized.append(tokenize(t))
     return vecs, BM25Okapi(tokenized)
+
+
+def show_top3(col, title, results, docs):
+    with col:
+        st.markdown(f"### {title}")
+        for i in range(min(3, len(results))):
+            doc_id, score = results[i]
+            st.write(f"**#{i + 1} (`{score:.4f}`)** — {docs[doc_id]['title']}")
+            st.caption(docs[doc_id]["text"][:110] + "...")
+
+
+# --- APP UI ---
