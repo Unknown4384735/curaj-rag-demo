@@ -7,7 +7,6 @@ from rank_bm25 import BM25Okapi
 st.set_page_config(page_title="CURAJ Hybrid RAG PDF Search", layout="wide")
 
 
-# 1. Beginner Helper Functions (Lists, Dictionaries, Loops, If/Else Only)
 def tokenize(text):
     stop_words = [
         "a", "an", "the", "is", "are", "was", "were", "be", "in", "on", "at",
@@ -74,7 +73,7 @@ def chunk_pdf(pdf_source, file_name):
     return chunks
 
 
-# 2. Load AI Models Once + Cache Index Per PDF Set
+# Load AI Models Once + Cache Index Per PDF Set
 @st.cache_resource
 def load_models():
     embed_model = SentenceTransformer("all-MiniLM-L6-v2")
@@ -96,7 +95,7 @@ def build_index(text_list, _embed_model):
 
 embed_model, rerank_model = load_models()
 
-# 3. Header & PDF Uploader
+# Header & PDF Uploader
 st.title("Hybrid RAG PDF Search Engine")
 st.markdown(
     "Upload any PDF (official university ordinance, course syllabus, or notes) and ask a question. "
@@ -109,7 +108,7 @@ uploaded_files = st.file_uploader(
     accept_multiple_files=True,
 )
 
-# 4. Read Uploaded PDFs (or Auto-Load Any PDFs Placed in the Repo Folder)
+# Read Uploaded PDFs (or Auto-Load Any PDFs Placed in the Repo Folder)
 documents = []
 
 if len(uploaded_files) > 0:
@@ -140,7 +139,7 @@ with st.spinner("Indexing PDF pages..."):
 
 st.caption(f"Ready: Indexed {len(documents)} raw text chunks directly from PDF.")
 
-# 5. Search Box
+# Search Box
 query = st.text_input(
     "Ask a question and press Enter:",
     placeholder="e.g., What topics are covered in 6.0MBD71? or minimum attendance required",
@@ -149,7 +148,7 @@ query = st.text_input(
 if query.strip() == "":
     st.stop()
 
-# 6. Stage 1: Naive Vector Search
+# Stage 1: Naive Vector Search
 query_vec = embed_model.encode(query, normalize_embeddings=True)
 vector_results = []
 
@@ -159,7 +158,7 @@ for i in range(len(search_texts)):
 
 vector_results.sort(key=get_score, reverse=True)
 
-# 7. Stage 2: BM25 Keyword Search + Reciprocal Rank Fusion (RRF)
+# Stage 2: BM25 Keyword Search + Reciprocal Rank Fusion (RRF)
 query_tokens = tokenize(query)
 bm25_raw = bm25.get_scores(query_tokens)
 bm25_results = []
@@ -192,7 +191,7 @@ for doc_id in rrf_scores:
 
 hybrid_results.sort(key=get_score, reverse=True)
 
-# 8. Stage 3: Cross-Encoder Reranker on Top 5 Hybrid Matches
+# Stage 3: Cross-Encoder Reranker on Top 5 Hybrid Matches
 top_k = min(10, len(hybrid_results))
 top_candidates = hybrid_results[:top_k]
 pairs = []
@@ -210,7 +209,7 @@ for i in range(len(top_candidates)):
 
 rerank_results.sort(key=get_score, reverse=True)
 
-# 9. Show Best Match First (Exact Raw PDF Text + Page Number)
+# Show Best Match First (Exact Raw PDF Text + Page Number)
 best_doc_id = rerank_results[0][0]
 best_score = rerank_results[0][1]
 vector_top_id = vector_results[0][0]
@@ -233,7 +232,7 @@ else:
             "**Verified match:** Vector Search ranked this page #1 by meaning, and Hybrid + Reranking confirmed it."
         )
 
-# 10. Clean 3-Column Comparison (Page Citations + Short Preview)
+# Clean 3-Column Comparison (Page Citations + Short Preview)
 st.subheader("Under the Hood: 3-Stage Ranking Comparison")
 col1, col2, col3 = st.columns(3)
 show_count = min(3, len(documents))
