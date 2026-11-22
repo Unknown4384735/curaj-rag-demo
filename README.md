@@ -11,8 +11,8 @@ This app compares three retrieval stages on a small university policy and course
 3. **Cross-Encoder Reranking:** Re-scores the top 3 hybrid candidates using `cross-encoder/ms-marco-MiniLM-L-6-v2` to select the final context sent to an LLM.
 
 ## Demo Queries Included
-- **Meaning Query:** *"How much class presence is needed so I don't get detained?"* — Vector search ranks the 75% Attendance Policy at `#1`.
-- **Exact Code Query:** *"What topics are covered in 6.0MBD71?"* — Naive vector search misses `6.0MBD71` in the Top 3, while Hybrid Search + Cross-Encoder Reranking lifts it to `#1`.
+- **Meaning Query:** *"How much class presence is needed so I don't get detained?"* - Vector search ranks the 75% Attendance Policy at `#1`.
+- **Exact Code Query:** *"What topics are covered in 6.0MBD71?"* - Naive vector search misses `6.0MBD71` in the Top 3, while Hybrid Search + Cross-Encoder Reranking lifts it to `#1`.
 
 ## Python Concepts Used
 Built strictly with foundational Python (no NumPy, no OOP/classes):
