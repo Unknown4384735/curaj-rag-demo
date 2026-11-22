@@ -7,7 +7,7 @@ from rank_bm25 import BM25Okapi
 st.set_page_config(page_title="CURAJ Hybrid RAG PDF Search", layout="wide")
 
 # ==========================================================
-# SETTINGS (Easy to tune in one place)
+# SETTINGS 
 # ==========================================================
 CHUNK_SIZE = 140        # Smaller chunks keep each course separate from old tables
 STEP_SIZE = 100         # 40-word overlap so codes/sentences aren't cut in half
@@ -48,7 +48,7 @@ def tokenize(text):
     return tokens
 
 
-# 2. Measure similarity between two meaning vectors (no NumPy needed)
+# 2. Measure similarity between two meaning vectors 
 # Note: Because vectors are normalized to length 1, Cosine Similarity = dot product
 def cosine_similarity(vec1, vec2):
     total = 0.0
