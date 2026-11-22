@@ -69,3 +69,8 @@ def load_models():
 
 @st.cache_resource
 def build_index(texts, _embed_model):
+    vecs = _embed_model.encode(texts, normalize_embeddings=True)
+    tokenized = []
+    for t in texts:
+        tokenized.append(tokenize(t))
+    return vecs, BM25Okapi(tokenized)
