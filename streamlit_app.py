@@ -6,7 +6,19 @@ from rank_bm25 import BM25Okapi
 
 st.set_page_config(page_title="CURAJ Hybrid RAG PDF Search", layout="wide")
 
+# ==========================================================
+# SETTINGS (Easy to tune in one place)
+# ==========================================================
+CHUNK_SIZE = 140        # Smaller chunks keep each course separate from old tables
+STEP_SIZE = 100         # 40-word overlap so codes/sentences aren't cut in half
+GUARDRAIL_CUTOFF = -5.0 # Below this Reranker score = off-topic question
 
+
+# ==========================================================
+# HELPER FUNCTIONS (100% Core Python: Loops, Lists, Strings)
+# ==========================================================
+
+# 1. Clean text and remove common filler words for BM25 keyword search
 def tokenize(text):
     stop_words = [
         "a", "an", "the", "is", "are", "was", "were", "be", "in", "on", "at",
@@ -15,6 +27,7 @@ def tokenize(text):
         "did", "can", "i", "we", "you", "my", "our", "it", "this", "that", "so"
     ]
 
+    # Keep only letters, numbers, and dots (dots keep codes like 6.0MBD71 intact)
     cleaned = ""
     for ch in text.lower():
         if ch.isalnum() or ch == ".":
@@ -29,11 +42,14 @@ def tokenize(text):
         if clean_word != "" and clean_word not in stop_words:
             tokens.append(clean_word)
 
+    # Safety fallback if a query only had stop words
     if len(tokens) == 0:
         return words
     return tokens
 
 
+# 2. Measure similarity between two meaning vectors (no NumPy needed)
+# Note: Because vectors are normalized to length 1, Cosine Similarity = dot product
 def cosine_similarity(vec1, vec2):
     total = 0.0
     for i in range(len(vec1)):
@@ -41,15 +57,15 @@ def cosine_similarity(vec1, vec2):
     return total
 
 
+# 3. Helper so list.sort() knows to sort by the score (2nd item in each pair)
 def get_score(item):
     return item[1]
 
 
+# 4. Read every PDF page and split it into small overlapping chunks
 def chunk_pdf(pdf_source, file_name):
     reader = PdfReader(pdf_source)
     chunks = []
-    chunk_size = 320  # words per chunk
-    step = 200        # 40-word overlap so codes/sentences aren't cut in half
 
     for page_num in range(len(reader.pages)):
         raw_text = reader.pages[page_num].extract_text()
@@ -58,22 +74,22 @@ def chunk_pdf(pdf_source, file_name):
 
         words = raw_text.split()
         part = 1
-        for start in range(0, len(words), step):
-            piece = " ".join(words[start : start + chunk_size])
-            chunks.append(
-                {
-                    "title": f"{file_name} — Page {page_num + 1} (Part {part})",
-                    "text": piece,
-                }
-            )
+        for start in range(0, len(words), STEP_SIZE):
+            piece = " ".join(words[start : start + CHUNK_SIZE])
+            chunks.append({
+                "title": f"{file_name} — Page {page_num + 1} (Part {part})",
+                "text": piece,
+            })
             part = part + 1
-            if start + chunk_size >= len(words):
+            if start + CHUNK_SIZE >= len(words):
                 break
 
     return chunks
 
 
-# Load AI Models Once + Cache Index Per PDF Set
+# ==========================================================
+# LOAD PRE-TRAINED AI MODELS ONCE (Cached for speed)
+# ==========================================================
 @st.cache_resource
 def load_models():
     embed_model = SentenceTransformer("all-MiniLM-L6-v2")
@@ -83,8 +99,10 @@ def load_models():
 
 @st.cache_resource
 def build_index(text_list, _embed_model):
+    # Turn every PDF chunk into meaning vectors (Stage 1)
     doc_vectors = _embed_model.encode(text_list, normalize_embeddings=True)
 
+    # Turn every PDF chunk into clean keyword lists for BM25 (Stage 2)
     tokenized_docs = []
     for text in text_list:
         tokenized_docs.append(tokenize(text))
@@ -95,41 +113,39 @@ def build_index(text_list, _embed_model):
 
 embed_model, rerank_model = load_models()
 
-# Header & PDF Uploader
+
+# ==========================================================
+# WEB PAGE UI (Header & PDF Loader)
+# ==========================================================
 st.title("Hybrid RAG PDF Search Engine")
 st.markdown(
-    "Upload any PDF (official university ordinance, course syllabus, or notes) and ask a question. "
-    "Extracts **100% raw PDF text** and compares Standard Vector Search vs. Hybrid Search (BM25 + RRF) + Reranking."
+    "Ask a question about any university PDF. Compares **1. Vector Search (Meaning)** "
+    "vs. **2. Hybrid Search (Meaning + Exact Keywords)** vs. **3. AI Reranker (Final Judge)**."
 )
 
 uploaded_files = st.file_uploader(
-    "Upload one or more PDF files:",
+    "Upload one or more PDF files (or use the pre-loaded CURAJ syllabus):",
     type="pdf",
     accept_multiple_files=True,
 )
 
-# Read Uploaded PDFs (or Auto-Load Any PDFs Placed in the Repo Folder)
+# Load uploaded PDFs; if none uploaded, auto-load PDFs saved in this folder
 documents = []
-
 if len(uploaded_files) > 0:
     for pdf_file in uploaded_files:
-        pdf_chunks = chunk_pdf(pdf_file, pdf_file.name)
-        for chunk in pdf_chunks:
+        for chunk in chunk_pdf(pdf_file, pdf_file.name):
             documents.append(chunk)
 else:
-    repo_files = sorted(os.listdir("."))
-    for filename in repo_files:
+    for filename in sorted(os.listdir(".")):
         if filename.lower().endswith(".pdf"):
-            pdf_chunks = chunk_pdf(filename, filename)
-            for chunk in pdf_chunks:
+            for chunk in chunk_pdf(filename, filename):
                 documents.append(chunk)
 
 if len(documents) == 0:
-    st.info(
-        "Upload a text-based PDF above (for example, your CURAJ Ordinance 03 or M.Sc. Syllabus PDF) to begin."
-    )
+    st.info("Upload a text-based PDF above to begin.")
     st.stop()
 
+# Extract just the raw text from every chunk for searching
 search_texts = []
 for doc in documents:
     search_texts.append(doc["text"])
@@ -137,9 +153,9 @@ for doc in documents:
 with st.spinner("Indexing PDF pages..."):
     doc_vectors, bm25 = build_index(search_texts, embed_model)
 
-st.caption(f"Ready: Indexed {len(documents)} raw text chunks directly from PDF.")
+st.caption(f"Ready: Indexed {len(documents)} clean text chunks directly from PDF.")
 
-# Search Box
+# Search box
 query = st.text_input(
     "Ask a question and press Enter:",
     placeholder="e.g., What topics are covered in 6.0MBD71? or minimum attendance required",
@@ -148,7 +164,10 @@ query = st.text_input(
 if query.strip() == "":
     st.stop()
 
-# Stage 1: Naive Vector Search
+
+# ==========================================================
+# STAGE 1: VECTOR SEARCH (Meaning Only)
+# ==========================================================
 query_vec = embed_model.encode(query, normalize_embeddings=True)
 vector_results = []
 
@@ -158,7 +177,10 @@ for i in range(len(search_texts)):
 
 vector_results.sort(key=get_score, reverse=True)
 
-# Stage 2: BM25 Keyword Search + Reciprocal Rank Fusion (RRF)
+
+# ==========================================================
+# STAGE 2: BM25 KEYWORD SEARCH + RRF MERGER (Dictionary)
+# ==========================================================
 query_tokens = tokenize(query)
 bm25_raw = bm25.get_scores(query_tokens)
 bm25_results = []
@@ -170,6 +192,7 @@ for i in range(len(search_texts)):
 
 bm25_results.sort(key=get_score, reverse=True)
 
+# Merge Vector ranks + BM25 ranks fairly using RRF: 1 / (60 + rank)
 rrf_scores = {}
 
 for i in range(len(vector_results)):
@@ -191,11 +214,15 @@ for doc_id in rrf_scores:
 
 hybrid_results.sort(key=get_score, reverse=True)
 
-# Stage 3: Cross-Encoder Reranker on Top 5 Hybrid Matches
+
+# ==========================================================
+# STAGE 3: AI RERANKER (Reads Top 10 Side-by-Side)
+# ==========================================================
 top_k = min(10, len(hybrid_results))
 top_candidates = hybrid_results[:top_k]
-pairs = []
 
+# Pair the user's question with each of the Top 10 chunks
+pairs = []
 for item in top_candidates:
     doc_id = item[0]
     pairs.append([query, search_texts[doc_id]])
@@ -209,7 +236,10 @@ for i in range(len(top_candidates)):
 
 rerank_results.sort(key=get_score, reverse=True)
 
-# Show Best Match First (Exact Raw PDF Text + Page Number)
+
+# ==========================================================
+# DISPLAY RESULTS + GUARDRAIL
+# ==========================================================
 best_doc_id = rerank_results[0][0]
 best_score = rerank_results[0][1]
 vector_top_id = vector_results[0][0]
@@ -217,7 +247,7 @@ vector_top_id = vector_results[0][0]
 st.divider()
 st.subheader("Best Verified Match (Raw PDF Excerpt Sent to LLM)")
 
-if best_score < -5.0:
+if best_score < GUARDRAIL_CUTOFF:
     st.error("No strong match found in the uploaded PDF(s) for this question.")
 else:
     st.success(f"**{documents[best_doc_id]['title']}**\n\n{documents[best_doc_id]['text']}")
@@ -232,34 +262,34 @@ else:
             "**Verified match:** Vector Search ranked this page #1 by meaning, and Hybrid + Reranking confirmed it."
         )
 
-# Clean 3-Column Comparison (Page Citations + Short Preview)
+# 3-Column Comparison (With beginner-friendly captions)
 st.subheader("Under the Hood: 3-Stage Ranking Comparison")
 col1, col2, col3 = st.columns(3)
 show_count = min(3, len(documents))
 
 with col1:
     st.markdown("### 1. Vector Search")
+    st.caption("Reads meaning only — misses exact course codes.")
     for i in range(show_count):
         doc_id = vector_results[i][0]
         score = vector_results[i][1]
-        preview = documents[doc_id]["text"][:110] + "..."
         st.write(f"**#{i + 1} (`{score:.4f}`)** — {documents[doc_id]['title']}")
-        st.caption(preview)
+        st.caption(documents[doc_id]["text"][:110] + "...")
 
 with col2:
     st.markdown("### 2. Hybrid (Vector + BM25)")
+    st.caption("Combines meaning + exact keywords using RRF.")
     for i in range(show_count):
         doc_id = hybrid_results[i][0]
         score = hybrid_results[i][1]
-        preview = documents[doc_id]["text"][:110] + "..."
         st.write(f"**#{i + 1} (`{score:.4f}`)** — {documents[doc_id]['title']}")
-        st.caption(preview)
+        st.caption(documents[doc_id]["text"][:110] + "...")
 
 with col3:
     st.markdown("### 3. AI Reranker (Final)")
+    st.caption("Reads question & top pages side-by-side to pick #1.")
     for i in range(min(3, len(rerank_results))):
         doc_id = rerank_results[i][0]
         score = rerank_results[i][1]
-        preview = documents[doc_id]["text"][:110] + "..."
         st.write(f"**#{i + 1} (`{score:+.4f}`)** — {documents[doc_id]['title']}")
-        st.caption(preview)
+        st.caption(documents[doc_id]["text"][:110] + "...")
